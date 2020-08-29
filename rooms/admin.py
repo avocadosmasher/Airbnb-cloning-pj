@@ -1,5 +1,6 @@
 from django.contrib import admin
 from . import models
+from django.utils.html import mark_safe
 
 
 @admin.register(models.Roomtype, models.Facility, models.Amenity, models.HouseRule)
@@ -7,13 +8,22 @@ class ItemAdmin(admin.ModelAdmin):
 
     """ Item Admin Definition"""
 
-    pass
+    list_display = ("name", "used_by")
+
+    def used_by(self, obj):
+        return obj.rooms.count()
+
+
+class PhotoInline(admin.TabularInline):
+    model = models.Photo
 
 
 @admin.register(models.Room)
 class RoomAdmin(admin.ModelAdmin):
 
     """ Room Admin Definition """
+
+    inlines = (PhotoInline,)
 
     list_display = (
         "name",
@@ -28,6 +38,8 @@ class RoomAdmin(admin.ModelAdmin):
         "check_out",
         "instant_book",
         "count_amenities",
+        "count_photos",
+        "total_rating",
     )
 
     ordering = ("name", "price", "bedrooms")
@@ -43,12 +55,14 @@ class RoomAdmin(admin.ModelAdmin):
         "country",
     )
 
+    raw_id_fields = ("host",)
+
     search_fields = ("=city", "^host__username")
 
     fieldsets = (
         (
             "Basic Info",
-            {"fields": ("name", "description", "country", "address", "price")},
+            {"fields": ("name", "description", "country", "city", "address", "price")},
         ),
         ("Times", {"fields": ("check_in", "check_out", "instant_book")}),
         ("Spaces", {"fields": ("guests", "beds", "bedrooms", "baths")}),
@@ -65,10 +79,10 @@ class RoomAdmin(admin.ModelAdmin):
     filter_horizontal = ("amenities", "facilities", "house_rules")
 
     def count_amenities(self, obj):
-        print(obj.amenities.all())
-        return "Potato"
+        return obj.amenities.count()
 
-    count_amenities.short_description = "hello"
+    def count_photos(self, obj):
+        return obj.photos.count()
 
 
 @admin.register(models.Photo)
@@ -76,4 +90,9 @@ class PhotoAdmin(admin.ModelAdmin):
 
     """ """
 
-    pass
+    list_display = ("__str__", "get_thumbnail")
+
+    def get_thumbnail(self, obj):
+        return mark_safe(f'<img width="50px" src="{obj.file.url}" />')
+
+    get_thumbnail.short_description = "Thumbnail"
