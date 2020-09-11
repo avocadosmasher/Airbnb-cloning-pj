@@ -50,7 +50,7 @@ class Command(BaseCommand):
                 room_models.Photo.objects.create(
                     caption=seeder.faker.sentence(),
                     room=room,
-                    file=f"room_photos/{random.randint(1,9)}.png",
+                    file=f"room_photos/{random.randint(1,8)}.jpg",
                 )
             """ for Many to Many fields, we can use add method """
             for a in amenities:
