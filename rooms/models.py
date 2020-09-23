@@ -2,10 +2,10 @@ from django.db import models
 from django.urls import reverse
 from django_countries.fields import CountryField
 from core import models as core_models
-from users import models as user_models
 
 
 class AbstractItem(core_models.TimeStampedModel):
+
     """ Abstract Item """
 
     name = models.CharField(max_length=80)
@@ -17,15 +17,17 @@ class AbstractItem(core_models.TimeStampedModel):
         return self.name
 
 
-class Roomtype(AbstractItem):
+class RoomType(AbstractItem):
+
+    """ RoomType Model Definition """
+
     class Meta:
-        verbose_name_plural = "Room Type"
-        ordering = ["created"]
+        verbose_name = "Room Type"
 
 
 class Amenity(AbstractItem):
 
-    """ Amenity Object Definition """
+    """ Amenity Model Definition """
 
     class Meta:
         verbose_name_plural = "Amenities"
@@ -34,6 +36,8 @@ class Amenity(AbstractItem):
 class Facility(AbstractItem):
 
     """ Facility Model Definition """
+
+    pass
 
     class Meta:
         verbose_name_plural = "Facilities"
@@ -44,11 +48,12 @@ class HouseRule(AbstractItem):
     """ HouseRule Model Definition """
 
     class Meta:
-        verbose_name_plural = "House Rule"
+        verbose_name = "House Rule"
 
 
 class Photo(core_models.TimeStampedModel):
-    """ Photo Model Definition"""
+
+    """ Photo Model Definition """
 
     caption = models.CharField(max_length=80)
     file = models.ImageField(upload_to="room_photos")
@@ -68,7 +73,7 @@ class Room(core_models.TimeStampedModel):
     city = models.CharField(max_length=80)
     price = models.IntegerField()
     address = models.CharField(max_length=140)
-    guests = models.IntegerField()
+    guests = models.IntegerField(help_text="How many people will be staying?")
     beds = models.IntegerField()
     bedrooms = models.IntegerField()
     baths = models.IntegerField()
@@ -79,7 +84,7 @@ class Room(core_models.TimeStampedModel):
         "users.User", related_name="rooms", on_delete=models.CASCADE
     )
     room_type = models.ForeignKey(
-        "Roomtype", related_name="rooms", on_delete=models.SET_NULL, null=True
+        "RoomType", related_name="rooms", on_delete=models.SET_NULL, null=True
     )
     amenities = models.ManyToManyField("Amenity", related_name="rooms", blank=True)
     facilities = models.ManyToManyField("Facility", related_name="rooms", blank=True)
@@ -89,12 +94,11 @@ class Room(core_models.TimeStampedModel):
         return self.name
 
     def save(self, *args, **kwargs):
-
         self.city = str.capitalize(self.city)
         super().save(*args, **kwargs)
-    
+
     def get_absolute_url(self):
-        return reverse("rooms:detail", kwargs={'pk': self.pk})
+        return reverse("rooms:detail", kwargs={"pk": self.pk})
 
     def total_rating(self):
         all_reviews = self.reviews.all()
@@ -109,3 +113,12 @@ class Room(core_models.TimeStampedModel):
         photo, = self.photos.all()[:1]
         return photo.file.url
 
+    def get_next_four_photos(self):
+        photos = self.photos.all()[1:5]
+        return photos
+
+    def get_beds(self):
+        if self.beds == 1:
+            return "1 bed"
+        else:
+            return f"{self.beds} beds"

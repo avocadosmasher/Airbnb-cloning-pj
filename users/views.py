@@ -11,11 +11,10 @@ from django.contrib.messages.views import SuccessMessageMixin
 from . import forms, models, mixins
 
 
-class LoginView(FormView):
+class LoginView(mixins.LoggedOutOnlyView, FormView):
 
     template_name = "users/login.html"
     form_class = forms.LoginForm
-    success_url = reverse_lazy("core:home")
 
     def form_valid(self, form):
         email = form.cleaned_data.get("email")
@@ -25,14 +24,21 @@ class LoginView(FormView):
             login(self.request, user)
         return super().form_valid(form)
 
+    def get_success_url(self):
+        next_arg = self.request.GET.get("next")
+        if next_arg is not None:
+            return next_arg
+        else:
+            return reverse("core:home")
+
 
 def log_out(request):
-    messages.info(request, f"See you later {request.user.first_name}")
+    messages.info(request, f"See you later")
     logout(request)
     return redirect(reverse("core:home"))
 
 
-class SignUpView(FormView):
+class SignUpView(mixins.LoggedOutOnlyView, FormView):
 
     template_name = "users/signup.html"
     form_class = forms.SignUpForm
@@ -106,7 +112,9 @@ def github_callback(request):
                     try:
                         user = models.User.objects.get(email=email)
                         if user.login_method != models.User.LOGIN_GITHUB:
-                            raise GithubException(f"Please log in with: {user.login_method}")
+                            raise GithubException(
+                                f"Please log in with: {user.login_method}"
+                            )
                     except models.User.DoesNotExist:
                         user = models.User.objects.create(
                             email=email,
@@ -143,7 +151,6 @@ class KakaoException(Exception):
 
 
 def kakao_callback(request):
-    
     try:
         code = request.GET.get("code")
         client_id = os.environ.get("KAKAO_ID")
@@ -157,13 +164,11 @@ def kakao_callback(request):
             raise KakaoException("Can't get authorization code.")
         access_token = token_json.get("access_token")
         profile_request = requests.get(
-            "https://kapi.kakao.com/v2/user/me",
+            "https://kapi.kakao.com/v1/user/me",
             headers={"Authorization": f"Bearer {access_token}"},
         )
         profile_json = profile_request.json()
-        print(profile_request.json())
-        Kakao_id = profile_json.get("id", None)
-        email = f"{Kakao_id}@naver.com"
+        email = profile_json.get("kaccount_email", None)
         if email is None:
             raise KakaoException("Please also give me your email")
         properties = profile_json.get("properties")
@@ -171,14 +176,14 @@ def kakao_callback(request):
         profile_image = properties.get("profile_image")
         try:
             user = models.User.objects.get(email=email)
-            if user.login_method != models.User.LOGIN_KAKAO:
+            if user.login_method != models.User.LOGING_KAKAO:
                 raise KakaoException(f"Please log in with: {user.login_method}")
         except models.User.DoesNotExist:
             user = models.User.objects.create(
                 email=email,
                 username=email,
                 first_name=nickname,
-                login_method=models.User.LOGIN_KAKAO,
+                login_method=models.User.LOGING_KAKAO,
                 email_verified=True,
             )
             user.set_unusable_password()
@@ -188,12 +193,13 @@ def kakao_callback(request):
                 user.avatar.save(
                     f"{nickname}-avatar", ContentFile(photo_request.content)
                 )
-        login(request, user)
         messages.success(request, f"Welcome back {user.first_name}")
+        login(request, user)
         return redirect(reverse("core:home"))
     except KakaoException as e:
         messages.error(request, e)
         return redirect(reverse("users:login"))
+
 
 class UserProfileView(DetailView):
 
@@ -201,7 +207,7 @@ class UserProfileView(DetailView):
     context_object_name = "user_obj"
 
 
-class UpdateProfileView(SuccessMessageMixin, UpdateView):
+class UpdateProfileView(mixins.LoggedInOnlyView, SuccessMessageMixin, UpdateView):
 
     model = models.User
     template_name = "users/update-profile.html"
@@ -229,7 +235,12 @@ class UpdateProfileView(SuccessMessageMixin, UpdateView):
         return form
 
 
-class UpdatePasswordView(SuccessMessageMixin, PasswordChangeView):
+class UpdatePasswordView(
+    mixins.LoggedInOnlyView,
+    mixins.EmailLoginOnlyView,
+    SuccessMessageMixin,
+    PasswordChangeView,
+):
 
     template_name = "users/update-password.html"
     success_message = "Password Updated"

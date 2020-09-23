@@ -14,10 +14,13 @@ class HomeView(ListView):
     ordering = "created"
     context_object_name = "rooms"
 
+
 class RoomDetail(DetailView):
-    
+
+    """ RoomDetail Definition """
+
     model = models.Room
-    
+
 
 class SearchView(View):
 
@@ -87,13 +90,15 @@ class SearchView(View):
 
                 paginator = Paginator(qs, 10, orphans=5)
 
-                page = request.GET.get("page",1)
+                page = request.GET.get("page", 1)
 
                 rooms = paginator.get_page(page)
 
-                return render(request, "rooms/search.html", {"form": form, "rooms": rooms})
-        else:
+                return render(
+                    request, "rooms/search.html", {"form": form, "rooms": rooms}
+                )
 
+        else:
             form = forms.SearchForm()
-        
+
         return render(request, "rooms/search.html", {"form": form})
